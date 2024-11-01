@@ -80,7 +80,7 @@ public class PaxosServer extends Node {
   public void init() {
     // Your code here...
 
-    ////System.out.println("Initiated " +  myAddress);
+    //////System.out.println("Initiated " +  myAddress);
 
     this.curBallot = new Ballot(0, this.Servers[0]);
     this.active = false;
@@ -88,7 +88,7 @@ public class PaxosServer extends Node {
     ActiveServers.add(this.myAddress);
 
     // if i am the leader then spawn scouts for all acceptors;
-    if(NotMe(Servers[0]))send(new Ping(1),Servers[0]);
+    if(NotMe(Servers[0]))send(new Ping(slotNumToExecute, SlotToCommandDecision),Servers[0]);
     set(new PingTimer(), PING_MILLIS);
     set(new PingCheckTimer(), PING_CHECK_MILLIS);
 
@@ -202,7 +202,7 @@ public class PaxosServer extends Node {
     this.curRequest = m;
 
     this.clientAddress = sender;
-    System.out.println("PaxosRequest ------>    " + m  + " from " + sender + " at " + myAddress);
+    //System.out.println("PaxosRequest ------>    " + m  + " from " + sender + " at " + myAddress);
     propose(m);
   }
 
@@ -211,7 +211,7 @@ public class PaxosServer extends Node {
       for (int i = slotNumToExecute; i <= slotNumToExecute + 5; i++) {
        if (!SlotToCommandDecision.containsKey(i)) {
           Proposals.put(i, m);
-          System.out.println("ProposeFunction ------>    " + m  + " for slot " + i + " at "+  myAddress);
+          //System.out.println("ProposeFunction ------>    " + m  + " for slot " + i + " at "+  myAddress);
           if(NotMe(Servers[0]))send(new ProposeMessage(m.clientAddress, i, m), this.Servers[0]);
           break;
         }
@@ -223,7 +223,7 @@ public class PaxosServer extends Node {
     callScout(this.myAddress, acceptorNodes);
     if (!Proposals.containsKey(m.slot_num) || (Proposals.containsKey(m.slot_num) && Objects.equals(Proposals.get(m.slot_num), m.operation))) {
         if (active) {
-          System.out.println("ProposeMessage ------>    " + m  + " from " + sender + " at " + myAddress);
+          //System.out.println("ProposeMessage ------>    " + m  + " from " + sender + " at " + myAddress);
           callCommander(
               this.myAddress,
               acceptorNodes,
@@ -235,23 +235,20 @@ public class PaxosServer extends Node {
 
   void callCommander(Address sender, Address[] acceptorNodes, Address[] replicaNodes, pValues cur) {
     GotAdoptedByCommander.clear();
-//    for (int i = 0; i < acceptorNodes.length; i++) {
-//      Address address = acceptorNodes[i];
-      Address address = Servers[0];
+    for (int i = 0; i < acceptorNodes.length; i++) {
+      Address address = acceptorNodes[i];
       GotAdoptedByCommander.add(address);
-//      if(!ActiveServers.contains(address))continue;
-      System.out.println("CallCommanderFunction ------>    " + cur  + " from " + sender + " at " + myAddress);
-//      send(new P2aMessage(this.myAddress, cur), acceptorNodes[i]);
-    send(new P2aMessage(this.myAddress, cur), Servers[0]);
-//    }
+//      System.out.println("CallCommanderFunction ------>    " + cur  + " from " + sender + " at " + myAddress);
+      send(new P2aMessage(this.myAddress, cur), acceptorNodes[i]);
+    }
   }
 
   void handleP2aMessage(P2aMessage m, Address sender) {
-    if (compare(m.pValue.ballot, this.curBallot) <= 0) {
+    if (compare(m.pValue.ballot, this.curBallot) >= 0) {
       this.curBallot = m.pValue.ballot;
       acceptedValues.put(m.pValue.slot_num, m.pValue.operation);
     }
-    System.out.println("P2aMessage ------>    " + m  + " from " + sender + " at " + myAddress);
+    //System.out.println("P2aMessage ------>    " + m  + " from " + sender + " at " + myAddress);
     if(NotMe(m.leaderAddress))send(
         new P2bMessage(
             this.myAddress, new pValues(this.curBallot, m.pValue.slot_num, m.pValue.operation)),
@@ -259,8 +256,6 @@ public class PaxosServer extends Node {
   }
 
   void perform(PaxosRequest m, Address sender) {
-    if(!active)callScout(this.myAddress, acceptorNodes);
-    if(!ActiveServers.contains(sender) || !NotMe(sender))return;
     for (int i = 1; i < slotNumToExecute; i++) {
       if (SlotToCommandDecision.containsKey(i) && Objects.equals(SlotToCommandDecision.get(i), m)) {
         slotNumToExecute++;
@@ -268,7 +263,7 @@ public class PaxosServer extends Node {
       }
     }
     AMOResult result = this.amoApplication.execute(m.operation);
-    System.out.println("PerformFunction ------>    " + m  + " from " + sender + " at " + myAddress);
+    ////System.out.println("PerformFunction ------>    " + m  + " from " + sender + " at " + myAddress);
     slotNumToExecute++;
     if(NotMe(clientAddress))send(new PaxosReply(m.sequenceNum, result), this.clientAddress);
   }
@@ -277,11 +272,10 @@ public class PaxosServer extends Node {
   void callScout(Address sender, Address[] acceptors) {
     GotAdoptedBy.clear();
     for (int i = 0; i < acceptors.length; i++) {
-//      Address address = acceptors[i];
-      Address address = Servers[0];
-      GotAdoptedBy.add(address);
-      if(!ActiveServers.contains(address))continue;
-      System.out.println("CallScoutFunction ------>    " + curBallot  + " from " + sender + " at " + myAddress);
+      Address address = acceptors[i];
+      GotAdoptedBy.add(acceptors[i]);
+//      if(!ActiveServers.contains(address))continue;
+      //System.out.println("CallScoutFunction ------>    " + curBallot  + " from " + sender + " at " + myAddress);
       if(NotMe(address))send(new P1aMessage(this.myAddress, curBallot), address);
     }
   }
@@ -292,24 +286,26 @@ public class PaxosServer extends Node {
       if (Proposals.containsKey(slotNumToExecute)
           && !Objects.equals(
               Proposals.get(slotNumToExecute), SlotToCommandDecision.get(slotNumToExecute))) {
-        System.out.println("DecisionMessage ------>    " + m  + " from " + sender + " at " + myAddress);
-        System.out.println("DecisionMessage sending this proposal again ------>    " + Proposals.get(slotNumToExecute)  + " from " + sender + " at " + myAddress);
+        //System.out.println("DecisionMessage ------>    " + m  + " from " + sender + " at " + myAddress);
+        //System.out.println("DecisionMessage sending this proposal again ------>    " + Proposals.get(slotNumToExecute)  + " from " + sender + " at " + myAddress);
         propose(Proposals.get(slotNumToExecute));
       }
-      System.out.println("DecisionMessage performing------>    " + SlotToCommandDecision.get(slotNumToExecute)  + " from " + sender + " at " + myAddress);
+      System.out.println("SlotNumToExecute -- :> " + slotNumToExecute);
+      //System.out.println("DecisionMessage performing------>    " + SlotToCommandDecision.get(slotNumToExecute)  + " from " + sender + " at " + myAddress);
       perform(SlotToCommandDecision.get(slotNumToExecute),sender);
     }
   }
 
   void handleP1aMessage(P1aMessage m, Address sender) {
     System.out.println("P1aMessage ------>    " + curBallot  + " from " + sender + " at " + myAddress);
-    if (compare(m.ballot, this.curBallot) < 0) this.curBallot = m.ballot;
-    if(NotMe(m.leaderAddress))send(new P1bMessage(this.myAddress, curBallot, Accepted), m.leaderAddress);
+    if (compare(m.ballot, this.curBallot) > 0) this.curBallot = m.ballot;
+    for(Address address: Servers)send(new P1bMessage(this.myAddress, curBallot, Accepted), address);
   }
 
   void handleP1bMessage(P1bMessage m, Address sender) {
+//    System.out.println("Neeraj Parihar " + m + " " +  sender);
     if (!Objects.equals(m.ballot, curBallot)) {
-      System.out.println("YES WE ARE SENDING PREMPT FOR " + m.ballot + " " + curBallot  + sender);
+      //System.out.println("YES WE ARE SENDING PREMPT FOR " + m.ballot + " " + curBallot  + sender);
       send(new PreemptedMessage(myAddress, m.ballot), Servers[0]);
       return;
     }
@@ -318,14 +314,15 @@ public class PaxosServer extends Node {
     Accepted.addAll(m.accepted);
 
     int majority = Servers.length / 2;
+//    System.out.println( " YOUUO " + sender + " ** " + GotAdoptedBy + " -- > " + (Servers.length - GotAdoptedBy.size()) +  " Majority " + majority);
     if ((Servers.length - GotAdoptedBy.size()) > majority) {
-      System.out.println("P1bMessage ------>    " + m  + " from " + sender + " at " + myAddress);
+      //System.out.println("P1bMessage ------>    " + m  + " from " + sender + " at " + myAddress);
       send(new AdoptedMessage(myAddress, curBallot, Accepted), Servers[0]);
     }
   }
 
   void handleP2bMessage(P2bMessage m, Address sender) {
-    System.out.println("P2bMessage ------>    " + m  + " from " + sender + " at " + myAddress);
+    //System.out.println("P2bMessage ------>    " + m  + " from " + sender + " at " + myAddress);
 
     if (!Objects.equals(m.pValue.ballot, curBallot)) {
       send(new PreemptedMessage(myAddress, curBallot), Servers[0]);
@@ -337,7 +334,7 @@ public class PaxosServer extends Node {
     if ((Servers.length - GotAdoptedBy.size()) > Servers.length / 2) {
       SlotToCommandDecision.putIfAbsent(m.pValue.slot_num, m.pValue.operation);
       CommanderResponseMessage res = new CommanderResponseMessage(myAddress, m.pValue.slot_num, SlotToCommandDecision.get(m.pValue.slot_num));
-      System.out.println("Here is the decision for this " + m + " response " + res);
+      //System.out.println("Here is the decision for this " + m + " response " + res);
       send(res, Servers[0]);
     }
   }
@@ -347,13 +344,13 @@ public class PaxosServer extends Node {
     SlotToCommandDecision.putIfAbsent(m.slot_num, m.operation);
     for (Address replica : replicaNodes) {
       if (!NotMe(replica)) continue;
-//      System.out.println("CommanderResponseMessage ------>    " + m  + " from " + sender + " at " + myAddress);
+//      //System.out.println("CommanderResponseMessage ------>    " + m  + " from " + sender + " at " + myAddress);
       send(new DecisionMessage(replica, m.slot_num, SlotToCommandDecision.get(m.slot_num)), replica);
     }
   }
 
   private void handleAdoptedMessage(AdoptedMessage msg, Address sender) {
-//    System.out.println("AdoptedMessage ------>    " + msg  + " from " + sender + " at " + myAddress);
+//    //System.out.println("AdoptedMessage ------>    " + msg  + " from " + sender + " at " + myAddress);
     if (curBallot.equals(msg.ballot)) {
       Map<Integer, pValues> pmax = new HashMap<>();
       for (pValues pv : msg.accepted) {
@@ -379,7 +376,7 @@ public class PaxosServer extends Node {
     if (compare(msg.ballot, this.curBallot) > 0) {
       active = false;
       curBallot = new Ballot(msg.ballot.ballot_num + 1, this.myAddress);
-      System.out.println("PreemptedMessage ------>    " + msg  + " from " + sender + " at " + myAddress);
+      //System.out.println("PreemptedMessage ------>    " + msg  + " from " + sender + " at " + myAddress);
       callScout(myAddress, acceptorNodes);
     }
   }
@@ -390,7 +387,14 @@ public class PaxosServer extends Node {
   }
 
   private void handlePing(Ping m, Address sender) {
+    if(slotNumToExecute < m.CurrentSlotToExecute)SlotToCommandDecision = m.decision_list;
     mostRecentlyPinged.add(sender);
+    send(new AckMessage(myAddress), this.Servers[0]);
+  }
+
+  void handleAckMessage(AckMessage m, Address sender)
+  {
+    // right now let's not do anything.
   }
 
   private void onPingCheckTimer(PingCheckTimer t) {
@@ -409,9 +413,18 @@ public class PaxosServer extends Node {
   }
 
   private void onPingTimer(PingTimer t) {
-    for(Address server : this.Servers)if(NotMe(server))send(new Ping(1), server);
+    if(this.myAddress != Servers[0])return;
+    for(Address server: Servers)if(NotMe(this.Servers[0]))send(new Ping(slotNumToExecute, SlotToCommandDecision), server);
     set(new PingTimer(), PING_MILLIS);
   }
+
+//  private void handleAckMessage(AckMessage msg, Address sender)
+//  {
+//    for(int key: msg.decision_list.keySet())
+//    {
+//
+//    }
+//  }
   
   private boolean NotMe(Address x)
   {
