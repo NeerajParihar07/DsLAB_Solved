@@ -2,6 +2,7 @@ package dslabs.paxos;
 
 import dslabs.framework.Address;
 import dslabs.framework.Message;
+import java.util.HashMap;
 import java.util.HashSet;
 import lombok.Data;
 
@@ -9,7 +10,8 @@ import lombok.Data;
 
 @Data
 final class Ping implements Message {
-  private final int health;
+  final int CurrentSlotToExecute;
+  final HashMap<Integer, PaxosRequest> decision_list;
 }
 
 @Data
@@ -94,3 +96,12 @@ final class ProposeMessage implements Message {
   final int slot_num;
   final PaxosRequest operation;
 }
+
+@Data
+final class AckMessage implements Message {
+  //
+  final Address clientAddress;
+//  final HashMap<Integer, PaxosRequest> decision_list;
+//  final int CurrentSlotToExecute;
+}
+
