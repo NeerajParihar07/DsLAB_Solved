@@ -265,7 +265,7 @@ public class PaxosServer extends Node {
     AMOResult result = this.amoApplication.execute(m.operation);
     ////System.out.println("PerformFunction ------>    " + m  + " from " + sender + " at " + myAddress);
     slotNumToExecute++;
-    if(NotMe(clientAddress))send(new PaxosReply(m.sequenceNum, result), this.clientAddress);
+    if(NotMe(clientAddress))send(new PaxosReply(m.sequenceNum, result), m.clientAddress);
   }
 
   // Your code here...
@@ -290,14 +290,14 @@ public class PaxosServer extends Node {
         //System.out.println("DecisionMessage sending this proposal again ------>    " + Proposals.get(slotNumToExecute)  + " from " + sender + " at " + myAddress);
         propose(Proposals.get(slotNumToExecute));
       }
-      System.out.println("SlotNumToExecute -- :> " + slotNumToExecute);
+//      System.out.println("SlotNumToExecute -- :> " + slotNumToExecute);
       //System.out.println("DecisionMessage performing------>    " + SlotToCommandDecision.get(slotNumToExecute)  + " from " + sender + " at " + myAddress);
       perform(SlotToCommandDecision.get(slotNumToExecute),sender);
     }
   }
 
   void handleP1aMessage(P1aMessage m, Address sender) {
-    System.out.println("P1aMessage ------>    " + curBallot  + " from " + sender + " at " + myAddress);
+//    System.out.println("P1aMessage ------>    " + curBallot  + " from " + sender + " at " + myAddress);
     if (compare(m.ballot, this.curBallot) > 0) this.curBallot = m.ballot;
     for(Address address: Servers)send(new P1bMessage(this.myAddress, curBallot, Accepted), address);
   }
@@ -387,6 +387,7 @@ public class PaxosServer extends Node {
   }
 
   private void handlePing(Ping m, Address sender) {
+//    System.out.println("@@@@@@@@  --> " + slotNumToExecute  +  " new " + m +  " old list " +  SlotToCommandDecision);
     if(slotNumToExecute < m.CurrentSlotToExecute)SlotToCommandDecision = m.decision_list;
     mostRecentlyPinged.add(sender);
     send(new AckMessage(myAddress), this.Servers[0]);
